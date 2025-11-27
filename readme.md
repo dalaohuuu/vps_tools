@@ -1,0 +1,1 @@
+curl -sSL https://raw.githubusercontent.com/dalaohuuu/acme.sh-let-sencrypt-dns_cf/refs/heads/main/acme_cf_install.sh | sudo bash
