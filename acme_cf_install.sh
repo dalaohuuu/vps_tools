@@ -97,7 +97,7 @@ echo ">>> 设置默认 CA 为 Let's Encrypt..."
 acme.sh --set-default-ca --server letsencrypt
 
 echo ">>> 正在申请 SSL 证书..."
-acme.sh --issue -d "$DOMAIN" --dns dns_cf --server letsencrypt --force
+acme.sh --issue -d "$DOMAIN" --dns dns_cf --server letsencrypt
 
 echo ">>> 正在安装证书..."
 acme.sh --install-cert -d "$DOMAIN" \
