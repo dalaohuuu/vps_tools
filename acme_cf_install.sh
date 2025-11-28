@@ -2,11 +2,8 @@
 set -e
 set -o pipefail
 
-# ========================
-# 参数默认值（为空时脚本会报错）
 DOMAIN=""
 CF_TOKEN=""
-# ========================
 
 show_help() {
   echo "用法：bash acme_cf_install.sh [参数]"
@@ -21,7 +18,7 @@ show_help() {
   exit 0
 }
 
-# 参数解析
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -d|--domain)
