@@ -83,22 +83,3 @@ else
     echo "无法确定系统版本信息。"
 fi
 echo
-
-#################### 已安装软件列表 ####################
-echo "========== 已安装应用 / 软件包列表 =========="
-if command -v dpkg >/dev/null 2>&1; then
-    echo "正在导出已安装软件列表到文件：${PKG_LIST_FILE}"
-    echo -e "# 已安装软件包（仅列出已安装的 ii 状态）\n# 包名\t版本" > "${PKG_LIST_FILE}"
-    dpkg -l | awk '/^ii/ {printf "%s\t%s\n", $2, $3}' >> "${PKG_LIST_FILE}"
-    echo "导出完成。"
-    echo "你可以通过以下命令查看："
-    echo "  less ${PKG_LIST_FILE}"
-else
-    echo "未找到 dpkg 命令，无法列出已安装的软件包（可能不是 Debian 系）。"
-fi
-echo
-
-echo "======================================"
-echo "  系统检查完成！"
-echo "  已安装软件列表文件：${PKG_LIST_FILE}"
-echo "======================================"
