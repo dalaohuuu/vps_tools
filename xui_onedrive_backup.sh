@@ -93,14 +93,16 @@ notify "✅ OneDrive 备份完成，备份文件存储于 /xui_backup/$HOST_ID/�
 ########################################
 if [ -n "$CRON_SCHEDULE" ]; then
     SCRIPT_PATH="$(readlink -f "$0")"
-
-    # 把 token 和 chat_id 当参数传给脚本（不会再在前面加 TG_BOT_TOKEN=... 这种前缀）
-    CRON_CMD="$SCRIPT_PATH $TG_BOT_TOKEN $TG_CHAT_ID"
-
+    SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
     LOG_FILE="/var/log/xui_onedrive_backup.log"
 
-    (crontab -l 2>/dev/null | grep -v "$SCRIPT_PATH" ; echo "$CRON_SCHEDULE $CRON_CMD >>$LOG_FILE 2>&1") | crontab -
+    # 新的 cron 命令（不使用前缀变量）
+    CRON_CMD="$SCRIPT_PATH \"$TG_BOT_TOKEN\" \"$TG_CHAT_ID\""
 
-    echo "定时任务已设置： $CRON_SCHEDULE"
+    # 删除所有包含脚本名的旧 cron 行（无论前缀是什么）
+    (crontab -l 2>/dev/null | grep -v "$SCRIPT_NAME" ; \
+     echo "$CRON_SCHEDULE $CRON_CMD >>$LOG_FILE 2>&1") | crontab -
+
+    echo "定时任务已设置：$CRON_SCHEDULE"
     notify "⏰ 自动备份已启用：每天 $TIME_INPUT（cron: $CRON_SCHEDULE）"
 fi
