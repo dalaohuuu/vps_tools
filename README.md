@@ -24,8 +24,8 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/main/cloudflare
 chmod +x cloudflare-ddns.sh && \
 sudo ./cloudflare-ddns.sh install YOUR_Domain YOUR_CF_TOKEN renewtime
 ```
-example：
-三个参数：
+## 3.1 example：
+### 3.1.1 参数说明：
 |项目|值|说明|
 |:---|:-------------------------|:-------------------------|
 |Zone|domain.com|根域名（自动识别，不必输入）|
@@ -33,7 +33,7 @@ example：
 |CF_token|1234567890abcdef|具有编辑 Cloudflare 域名权限的 API Token|
 |renewtime|300| 脚本检查 IP 更新周期（秒）|
 
-## 运行脚本：
+### 3.1.2 运行脚本：
 sudo apt update && sudo apt install -y curl && \
 curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/main/cloudflare-ddns.sh -o cloudflare-ddns.sh && \
 chmod +x cloudflare-ddns.sh && \
