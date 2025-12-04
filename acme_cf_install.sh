@@ -143,7 +143,8 @@ acme.sh --install-cert -d "$DOMAIN" \
 cp "$DIR_ROOT/privkey.pem" "$DIR_ETC/privkey.pem"
 cp "$DIR_ROOT/fullchain.pem" "$DIR_ETC/fullchain.pem"
 
-chmod 600 "$DIR_ROOT/privkey.pem" "$DIR_ETC/privkey.pem"
+chmod 600 "$DIR_ROOT/privkey.pem"
+chmod 644 "$DIR_ETC/privkey.pem"
 chmod 644 "$DIR_ROOT/fullchain.pem" "$DIR_ETC/fullchain.pem"
 
 unset CF_Token CF_TOKEN
