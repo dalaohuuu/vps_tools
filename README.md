@@ -17,3 +17,23 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main
 && chmod +x debianinfo.sh \
 && bash debianinfo.sh
 ```
+# 3.linux系统ddclient CloudFlare托管域名动态域名解析
+```
+sudo apt update && sudo apt install -y curl && \
+curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/main/cloudflare-ddns.sh -o cloudflare-ddns.sh && \
+chmod +x cloudflare-ddns.sh && \
+sudo ./cloudflare-ddns.sh install YOUR_Domain YOUR_CF_TOKEN renewtime
+```
+example：
+三个参数：
+|项目|值|
+|:---|:---|:---|
+|Zone|domain.com| |
+|Domain|example.domain.com|域名|
+|CF_token|1234567890abcdef|具有编辑CF域名权限的令牌|
+|renewtime|300|ddclient检查更新的周期，时间：秒|
+运行脚本：
+sudo apt update && sudo apt install -y curl && \
+curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/main/cloudflare-ddns.sh -o cloudflare-ddns.sh && \
+chmod +x cloudflare-ddns.sh && \
+sudo ./cloudflare-ddns.sh install example.domain.com 1234567890abcdef 300
