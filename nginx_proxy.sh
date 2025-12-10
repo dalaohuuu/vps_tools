@@ -204,8 +204,8 @@ server {
     location ^~ /$Panel/ {
         proxy_pass http://127.0.0.1:1234/;
 
-        auth_basic "3x-ui admin";
-        auth_basic_user_file $HTPASS_FILE;
+        #auth_basic "3x-ui admin";
+        #auth_basic_user_file $HTPASS_FILE;
 
         proxy_set_header Host              \$host;
         proxy_set_header X-Real-IP         \$remote_addr;
