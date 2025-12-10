@@ -39,3 +39,8 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/main/cloudflare
 chmod +x cloudflare-ddns.sh && \
 sudo ./cloudflare-ddns.sh install example.domain.com 1234567890abcdef 300
 # Nginx+Cloudreve+apache2-utils+BasicAuth+systemd+Nginx 配置+acme.sh
+```
+curl -fsSL https://raw.githubusercontent.com/<你的GitHub用户名>/<仓库名>/main/deploy.sh \
+  -o deploy.sh && \
+bash deploy.sh <DOMAIN> <CF_Token> <PanelPath> <SubPath>
+```
