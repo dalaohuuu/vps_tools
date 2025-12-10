@@ -38,9 +38,45 @@ sudo apt update && sudo apt install -y curl && \
 curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/main/cloudflare-ddns.sh -o cloudflare-ddns.sh && \
 chmod +x cloudflare-ddns.sh && \
 sudo ./cloudflare-ddns.sh install example.domain.com 1234567890abcdef 300
-# Nginx+Cloudreve+apache2-utils+BasicAuth+systemd+Nginx 配置+acme.sh
-```
-curl -fsSL https://raw.githubusercontent.com/<你的GitHub用户名>/<仓库名>/main/deploy.sh \
-  -o deploy.sh && \
-bash deploy.sh <DOMAIN> <CF_Token> <PanelPath> <SubPath>
+# Nginx+Cloudreve+Nginx 配置+acme.sh
+# Cloudreve + Nginx + SSL 一键部署脚本
+
+本项目提供一个简洁的自动化脚本，用于在 **纯净 Ubuntu 服务器上部署：**
+
+- **Cloudreve 网盘**
+- **Nginx HTTPS 反代（启用自定义端口 8443）**
+- **acme.sh 自动申请并安装 Let's Encrypt SSL 证书（Cloudflare DNS）**
+
+脚本默认只反代 Cloudreve，不包含任何 3x-ui 面板或订阅接口内容，适合用作独立网盘站点或为其他程序准备 SSL 环境。
+
+---
+
+## 🚀 功能特点
+
+- 自动安装 Cloudreve（获取 GitHub 最新 release）
+- 自动安装 Nginx 并配置反向代理
+- 自动使用 acme.sh + Cloudflare DNS 申请证书
+- 自动安装证书至：
+  - `/root/cert/<domain>/`
+  - `/etc/cert/`
+- 自动创建 systemd 服务，Cloudreve 开机启动
+- 自动配置 HTTPS 访问（端口：`8443`）
+- 无 `set -e`，脚本容错性更强
+
+---
+
+## 📦 适用系统
+
+- Ubuntu 20.04 / 22.04 / 24.04 以及其他 Debian 系发行版
+
+---
+
+## 📘 使用方法
+
+### 1. 下载脚本
+
+```bash
+curl -fsSL curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main/nginx_proxy.sh -o nginx_proxy.sh \
+  && chmod +x nginx_proxy.sh \
+  && ./nginx_proxy.sh Domain CF_Token
 ```
