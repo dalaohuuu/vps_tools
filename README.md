@@ -38,3 +38,4 @@ sudo apt update && sudo apt install -y curl && \
 curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/main/cloudflare-ddns.sh -o cloudflare-ddns.sh && \
 chmod +x cloudflare-ddns.sh && \
 sudo ./cloudflare-ddns.sh install example.domain.com 1234567890abcdef 300
+# Nginx+Cloudreve+apache2-utils+BasicAuth+systemd+Nginx 配置+acme.sh
