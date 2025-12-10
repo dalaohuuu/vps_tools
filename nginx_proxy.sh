@@ -1,49 +1,41 @@
 #!/usr/bin/env bash
 
 ############################################################
-# 一键部署：acme.sh + Nginx + Cloudreve + 面板反代
-# 适合放在 GitHub 上公开使用，无敏感信息，无 set -e
+# 一键部署：acme.sh + Nginx + Cloudreve（无 3x-ui 反代）
 #
 # 用法：
-#   bash deploy.sh <DOMAIN> <CF_Token> <PanelPath> <SubPath>
+#   bash deploy.sh <DOMAIN> <CF_Token>
 #
 # 示例：
-#   bash deploy.sh cc1.5165188.xyz YOUR_CF_TOKEN O6hm1nsvmUDuiotGF3 sub
+#   bash deploy.sh cc1.5165188.xyz YOUR_CF_TOKEN
+#
+# 部署后访问：
+#   https://<DOMAIN>:8443/
 ############################################################
 
 echo "========== 一键部署启动 =========="
 
 ### 0. 参数检查 ###
-if [ $# -lt 4 ]; then
-  echo "用法: $0 <DOMAIN> <CF_Token> <PanelPath> <SubPath>"
+if [ $# -lt 2 ]; then
+  echo "用法: $0 <DOMAIN> <CF_Token>"
+  echo "示例: $0 cc1.5165188.xyz YOUR_CF_TOKEN"
   exit 1
 fi
 
 DOMAIN="$1"
 CF_Token="$2"
-PanelRaw="$3"
-SubRaw="$4"
-
-# 去掉前后 '/'
-Panel="${PanelRaw#/}"
-Panel="${Panel%/}"
-Sub="${SubRaw#/}"
-Sub="${SubRaw%/}"
-
-if [ -z "$Panel" ] || [ -z "$Sub" ]; then
-  echo "❌ PanelPath / SubPath 不能为空"
-  exit 1
-fi
 
 HTTPS_PORT=8443
 CERT_ROOT="/root/cert"
 CERT_DIR="$CERT_ROOT/$DOMAIN"
 CERT_ETC_DIR="/etc/cert"
 CLOUDREVE_DIR="/opt/cloudreve"
-HTPASS_FILE="/etc/nginx/.htpasswd_3xui"
 
-ADMIN_USER="myadmin"
-ADMIN_PASS="$(openssl rand -base64 12)"
+echo "域名：        $DOMAIN"
+echo "证书目录：    $CERT_DIR"
+echo "Nginx 证书：  $CERT_ETC_DIR"
+echo "Cloudreve：   $CLOUDREVE_DIR"
+echo
 
 ### 1. 必须 root ###
 if [ "$(id -u)" -ne 0 ]; then
@@ -52,14 +44,14 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 ### 2. 安装依赖 ###
-echo "[1/7] 安装依赖..."
+echo "[1/6] 安装依赖..."
 apt update -y
-apt install -y nginx apache2-utils wget curl tar socat cron openssl
+apt install -y nginx wget curl tar socat cron openssl
 
 rm -f /etc/nginx/sites-enabled/* 2>/dev/null || true
 
-### 3. 安装 acme.sh 和证书 ###
-echo "[2/7] 安装 acme.sh / 申请证书..."
+### 3. 安装 acme.sh + 签证书 ###
+echo "[2/6] 安装 / 检测 acme.sh，并申请证书..."
 
 if [ ! -d "/root/.acme.sh" ]; then
   curl -fsSL https://get.acme.sh | sh || echo "⚠ acme.sh 安装失败"
@@ -69,8 +61,10 @@ ACME="/root/.acme.sh/acme.sh"
 
 if [ -x "$ACME" ]; then
   export CF_Token="$CF_Token"
+
   "$ACME" --set-default-ca --server letsencrypt || true
 
+  echo "[2/6] 为 $DOMAIN 签证书 (--force)..."
   "$ACME" --issue -d "$DOMAIN" --dns dns_cf --force || \
     echo "⚠ 证书签发失败，请检查 Cloudflare Token 和域名解析"
 
@@ -83,35 +77,38 @@ if [ -x "$ACME" ]; then
   "$ACME" --install-cert -d "$DOMAIN" \
       --key-file "$CERT_ETC_DIR/privkey.pem" \
       --fullchain-file "$CERT_ETC_DIR/fullchain.pem" \
-      --reloadcmd "systemctl reload nginx || true"
+      --reloadcmd "chmod 644 $CERT_ETC_DIR/privkey.pem && systemctl reload nginx || true"
 else
-  echo "⚠ acme.sh 未安装成功，请手工检查"
+  echo "⚠ acme.sh 未正确安装，跳过证书流程"
 fi
 
-### 4. BasicAuth ###
-echo "[3/7] 创建 BasicAuth..."
-rm -f "$HTPASS_FILE"
-echo "$ADMIN_PASS" | htpasswd -ci "$HTPASS_FILE" "$ADMIN_USER"
+### 权限处理：仅 /etc/cert/privkey.pem 设为 644 ###
+if [ -f "$CERT_ETC_DIR/privkey.pem" ]; then
+    chmod 644 "$CERT_ETC_DIR/privkey.pem"
+    echo "[权限] 已将 $CERT_ETC_DIR/privkey.pem 设置为 644"
+else
+    echo "⚠ 未找到 $CERT_ETC_DIR/privkey.pem（acme.sh 可能失败）"
+fi
 
-### 5. 安装 Cloudreve ###
-echo "[4/7] 安装 Cloudreve..."
+### 4. 安装 Cloudreve ###
+echo "[3/6] 安装 Cloudreve..."
 
 mkdir -p "$CLOUDREVE_DIR"
-cd "$CLOUDREVE_DIR"
+cd "$CLOUDREVE_DIR" || exit 1
 
 URL=$(wget -qO- https://api.github.com/repos/cloudreve/Cloudreve/releases/latest \
   | grep browser_download_url | grep linux_amd64 | cut -d '"' -f 4 | head -n1)
 
-if [ -z "$URL" ]; then
-  echo "❌ 无法从 GitHub 获取 Cloudreve 发布版本"
-else
-  wget -O cloudreve.tar.gz "$URL" || echo "❌ 下载失败"
+if [ -n "$URL" ]; then
+  wget -O cloudreve.tar.gz "$URL"
   tar -zxvf cloudreve.tar.gz
   chmod +x cloudreve
+else
+  echo "❌ 获取 Cloudreve 最新版本失败"
 fi
 
-### 6. systemd 服务 ###
-echo "[5/7] 写入 Cloudreve systemd 服务..."
+### 5. systemd 服务 ###
+echo "[4/6] 写入 Cloudreve systemd 服务..."
 
 cat >/etc/systemd/system/cloudreve.service <<EOF
 [Unit]
@@ -130,8 +127,8 @@ EOF
 systemctl daemon-reload
 systemctl enable --now cloudreve || echo "⚠ Cloudreve 启动失败"
 
-### 7. 写 Nginx 配置 ###
-echo "[6/7] 写入 Nginx 配置..."
+### 6. 写 Nginx 配置（仅 Cloudreve） ###
+echo "[5/6] 写入 Nginx 配置..."
 
 cat >/etc/nginx/conf.d/$DOMAIN.conf <<EOF
 server {
@@ -147,45 +144,34 @@ server {
     ssl_certificate     $CERT_DIR/fullchain.pem;
     ssl_certificate_key $CERT_DIR/privkey.pem;
 
+    # Cloudreve 网盘
     location / {
         proxy_pass http://127.0.0.1:5212;
         proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-    }
 
-    location ^~ /$Sub/ {
-        proxy_pass http://127.0.0.1:2096;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-    }
+        proxy_set_header Host              \$host;
+        proxy_set_header X-Real-IP         \$remote_addr;
+        proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
 
-    location ^~ /$Panel/ {
-        proxy_pass http://127.0.0.1:1234;
-        proxy_http_version 1.1;
-
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-
-        auth_basic "3x-ui admin";
-        auth_basic_user_file $HTPASS_FILE;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
     }
 }
 EOF
 
-nginx -t || echo "⚠ Nginx 配置可能有错误"
+nginx -t || echo "⚠ Nginx 配置有错误"
 systemctl reload nginx || echo "⚠ Nginx reload 失败"
 
-### 8. 总结 ###
+### 7. 完成 ###
 echo "========== 部署完成 🎉 =========="
-echo "访问信息："
-echo "  网盘：     https://$DOMAIN:$HTTPS_PORT/"
-echo "  面板：     https://$DOMAIN:$HTTPS_PORT/$Panel/"
-echo "  订阅：     https://$DOMAIN:$HTTPS_PORT/$Sub/"
+echo "Cloudreve 网盘："
+echo "  https://$DOMAIN:$HTTPS_PORT/"
 echo
-echo "BasicAuth："
-echo "  用户名： $ADMIN_USER"
-echo "  密码：   $ADMIN_PASS"
+echo "证书位置："
+echo "  /root/cert/$DOMAIN/"
+echo "  /etc/cert/"
+echo "私钥权限："
+echo "  $CERT_ETC_DIR/privkey.pem -> 644"
 echo
-echo "脚本来自 GitHub 公共仓库，可安全分发。"
+echo "脚本可用于 GitHub 或自动化部署环境。"
