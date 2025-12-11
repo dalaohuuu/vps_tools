@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# 一键安装 rclone + 配置 OneDrive + 设置每天定时备份
+# 作用：
+#   1. 配置 rclone onedrive
+#   2. 将 nginx / fail2ban / x-ui / SSL 证书同步到 OneDrive（不压缩）
 # 用法：
 #   sudo bash rclone_onedrive_backup.sh '<TOKEN_JSON>' '<DRIVE_ID>' 'HH:MM'
-# 例：
-#   sudo bash rclone_onedrive_backup.sh '{"access_token":"xxx","expiry":"2025-01-01T00:00:00Z"}' '{"access_token":"xxx","expiry":"2025-01-01T00:00:00Z"}' '03:03'
 
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
-  echo "❌ 请使用 root（sudo）运行本脚本"
+  echo "❌ 请使用 sudo"
   exit 1
 fi
 
@@ -21,15 +21,7 @@ TOKEN_JSON="$1"
 DRIVE_ID="$2"
 BACKUP_TIME="$3"
 
-if [[ ! "$BACKUP_TIME" =~ ^([01][0-9]|2[0-3]):([0-5][0-9])$ ]]; then
-  echo "❌ 时间格式错误，应为 HH:MM，例如 03:03"
-  exit 1
-fi
-
-CRON_H="${BACKUP_TIME%:*}"
-CRON_M="${BACKUP_TIME#*:}"
-
-REMOTE_NAME="onedrive"
+REMOTE="onedrive"
 CONF_DIR="/root/.config/rclone"
 CONF_FILE="${CONF_DIR}/rclone.conf"
 BACKUP_SCRIPT="/usr/local/bin/vps_rclone_backup.sh"
@@ -37,29 +29,18 @@ LOG_FILE="/var/log/vps_rclone_backup.log"
 
 mkdir -p "$CONF_DIR"
 
-##############################
+#############################################
 # 安装 rclone
-##############################
+#############################################
 if ! command -v rclone >/dev/null 2>&1; then
-  echo "==> 安装 rclone..."
-  if command -v apt-get >/dev/null 2>&1; then
-    apt-get update
-    apt-get install -y rclone
-  else
-    echo "❌ 当前系统没有 apt-get，请手动安装 rclone 后再运行。"
-    exit 1
-  fi
-else
-  echo "==> rclone 已安装，跳过。"
+  apt update && apt install -y rclone
 fi
 
-##############################
+#############################################
 # 写入 rclone 配置
-##############################
-echo "==> 写入 rclone 配置到 ${CONF_FILE}"
-
+#############################################
 cat > "$CONF_FILE" <<EOF
-[${REMOTE_NAME}]
+[$REMOTE]
 type = onedrive
 token = ${TOKEN_JSON}
 drive_type = personal
@@ -69,78 +50,52 @@ EOF
 chmod 600 "$CONF_FILE"
 export RCLONE_CONFIG="$CONF_FILE"
 
-##############################
-# 创建备份脚本（真正执行备份的那个）
-##############################
-echo "==> 创建备份脚本：${BACKUP_SCRIPT}"
-
+#############################################
+# 创建真正执行备份的脚本
+#############################################
 cat > "$BACKUP_SCRIPT" <<"EOF"
 #!/usr/bin/env bash
 set -euo pipefail
 
 REMOTE="onedrive"
 HOST="$(hostname)"
-REMOTE_DIR="${REMOTE}:/vps_backup目录/${HOST}/"
+DEST="${REMOTE}:/vps_backup目录/${HOST}/"
 
-TS="$(date +%F_%H-%M-%S)"
-TMP="/tmp/vps_backup_${TS}"
-ARCHIVE="${HOST}_${TS}.tar.gz"
+echo "==> 正在同步备份到 $DEST"
 
-mkdir -p "$TMP"
+# 1. nginx
+rclone sync /etc/nginx "${DEST}nginx" --create-empty-src-dirs
 
-# 备份内容：nginx、fail2ban、3x-ui 数据库与配置、SSL 证书
-FILES=(
-  "/etc/nginx"
-  "/etc/fail2ban"
-  "/etc/x-ui/x-ui.db"
-  "/usr/local/x-ui/bin/config.json"
-  "/root/cert/domain/fullchain.pem"
-  "/root/cert/domain/privkey.pem"
-  "/etc/cert/fullchain.pem"
-  "/etc/cert/privkey.pem"
-)
+# 2. fail2ban
+rclone sync /etc/fail2ban "${DEST}fail2ban" --create-empty-src-dirs
 
-EXIST=()
-for f in "${FILES[@]}"; do
-  if [[ -e "$f" ]]; then
-    EXIST+=("$f")
-  else
-    echo "⚠️ 路径不存在，跳过：$f"
-  fi
-done
+# 3. 3x-ui
+rclone copy /etc/x-ui/x-ui.db "${DEST}xui/x-ui.db" --create-empty-src-dirs
+rclone copy /usr/local/x-ui/bin/config.json "${DEST}xui/config.json" --create-empty-src-dirs
 
-if [[ ${#EXIST[@]} -eq 0 ]]; then
-  echo "❌ 没有找到任何需要备份的文件/目录"
-  exit 1
+# 4. SSL 证书（只备份一份）
+if [[ -f "/root/cert/domain/fullchain.pem" ]]; then
+  rclone copy "/root/cert/domain/fullchain.pem" "${DEST}ssl/fullchain.pem"
+  rclone copy "/root/cert/domain/privkey.pem" "${DEST}ssl/privkey.pem"
+else
+  echo "⚠️ 未找到 /root/cert/domain/fullchain.pem，跳过 SSL 证书备份"
 fi
 
-echo "==> 打包以下内容："
-printf '  - %s\n' "${EXIST[@]}"
-
-tar -czf "${TMP}/${ARCHIVE}" "${EXIST[@]}"
-
-echo "==> 上传到 OneDrive：${REMOTE_DIR}"
-rclone copy "${TMP}/${ARCHIVE}" "$REMOTE_DIR" --create-empty-src-dirs
-
-rm -rf "$TMP"
-echo "✅ 备份完成：${ARCHIVE}"
+echo "✅ 同步备份完成！"
 EOF
 
 chmod +x "$BACKUP_SCRIPT"
 
-##############################
-# 配置 cron 定时任务
-##############################
-echo "==> 写入每日定时任务到 /etc/crontab，每天 ${BACKUP_TIME} 执行备份"
+#############################################
+# 写入 cron
+#############################################
 
-touch "$LOG_FILE"
-chmod 600 "$LOG_FILE"
-
-# 删除旧的备份任务
 sed -i "/vps_rclone_backup.sh/d" /etc/crontab
+
+CRON_H="${BACKUP_TIME%:*}"
+CRON_M="${BACKUP_TIME#*:}"
 
 echo "${CRON_M} ${CRON_H} * * * root ${BACKUP_SCRIPT} >> ${LOG_FILE} 2>&1" >> /etc/crontab
 
-echo "🎉 部署完成！"
-echo "手动测试一次备份："
-echo "  sudo ${BACKUP_SCRIPT}"
+echo "🎉 备份脚本安装完成！"
+echo "手动执行备份：sudo ${BACKUP_SCRIPT}"
