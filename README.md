@@ -195,8 +195,8 @@ sudo systemctl restart ssserver-A1
 sudo journalctl -u ssserver-A1 -f
 ```
 ## 6.6 用法示例
-用法示例
-列出全部实例
+
+- 列出全部实例
 ```bash
 sudo ./install-shadowsocks-rust.sh --list
 ```
