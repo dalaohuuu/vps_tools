@@ -124,45 +124,53 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main
       sudo netplan apply
       ```
       必要时可恢复 /etc/netplan/ 目录下的 .bak.* 备份文件后再执行上述命令。
-# 6.install-shadowsocks-rust.sh
-  用于在 VPS 上 一键安装并配置 shadowsocks-rust（ssserver）服务端，支持：
-   - 参数化配置（端口 / 加密 / 用户）
-   - systemd 开机自启
-   - `--port` 和 `--method` 为必传参数
-   - 认证参数必须二选一：`--password` 或 `--user`
-## 6.1 一键使用
+# 6. install-shadowsocks-rust.sh
+
+- 下载官方 release 的 `ssserver` 二进制
+- 生成多个 `/etc/shadowsocks-rust/<NAME>.json`
+- 为每个端口创建一个 systemd 服务：`ssserver-<NAME>.service`
+- 自动开机自启并启动
+- 不包含 UFW，不使用 jq/python，不自动安装依赖
+
+## 6.1 一键使用（多端口多密码：推荐）
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main/install-shadowsocks-rust.sh \
+curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/main/install-shadowsocks-rust.sh \
   -o install-shadowsocks-rust.sh \
 && chmod +x install-shadowsocks-rust.sh \
 && sudo ./install-shadowsocks-rust.sh \
-  --port 12345 \
   --method chacha20-ietf-poly1305 \
   --mode tcp_only \
-  --user A1:PASS_A1_12345678 \
-  --user A2:PASS_A2_12345678 \
-&& sudo systemctl status ssserver --no-pager
+  --entry 'A1:62666:PASS_A1_12345678' \
+  --entry 'A2:62667:PASS_A2_12345678' \
+  --entry 'A3:62668:PASS_A3_12345678' \
+&& systemctl list-units 'ssserver-*' --no-pager
+
 ```
 ## 6.2 参数总览
-| 参数                    | 是否必需 | 默认值        | 说明                         |
-| --------------------- | ---- | ---------- | -------------------------- |
-| `--port <PORT>`       | ✅ 必需 | 无          | ssserver 监听端口              |
-| `--method <METHOD>`   | ✅ 必需 | 无          | Shadowsocks 加密方式           |
-| `--password <PASS>`   | 二选一  | 无          | 单用户密码                      |
-| `--user <NAME:PASS>`  | 二选一  | 无          | 多用户（可重复）                   |
-| `--mode <MODE>`       | ❌    | `tcp_only` | `tcp_only` / `tcp_and_udp` |
-| `--timeout <SECONDS>` | ❌    | `300`      | 连接超时（秒）                    |
-| `--tag <TAG>`         | ❌    | `latest`   | shadowsocks-rust 版本        |
-| `--dry-run`           | ❌    | 关闭         | 只打印不执行                     |
-| `-h, --help`          | ❌    | —          | 显示帮助                       |
+| 参数                         | 是否必需     | 默认值        | 说明                                               |
+| -------------------------- | -------- | ---------- | ------------------------------------------------ |
+| `--method <METHOD>`        | ✅ 必需（安装） | 无          | Shadowsocks 加密方式                                 |
+| `--entry <NAME:PORT:PASS>` | ✅（多端口模式） | 无          | 多端口多密码，可重复                                       |
+| `--port <PORT>`            | ✅（单端口模式） | 无          | 单端口监听                                            |
+| `--password <PASS>`        | ✅（单端口模式） | 无          | 单端口密码                                            |
+| `--mode <MODE>`            | ❌        | `tcp_only` | `tcp_only` / `tcp_and_udp`                       |
+| `--timeout <SECONDS>`      | ❌        | `300`      | 连接超时（秒）                                          |
+| `--tag <TAG>`              | ❌        | `latest`   | shadowsocks-rust 版本                              |
+| `--log-level <LEVEL>`      | ❌        | unset      | 可选日志级别：`error/warn/info/debug/trace`（默认不写入配置，最稳） |
+| `--force`                  | ❌        | 关闭         | 覆盖已有同名 `<NAME>` 的 config/unit                    |
+| `--list`                   | ❌        | —          | 列出所有已安装实例（读取 `/etc/shadowsocks-rust/*.json`）     |
+| `--remove <NAME>`          | ❌        | —          | 删除指定实例（disable + 删除 unit + 删除 json）              |
+| `--dry-run`                | ❌        | 关闭         | 只打印不执行                                           |
+| `-h, --help`               | ❌        | —          | 帮助                                               |
+
 
 ## 6.3 用户 / 认证相关参数（重点）
 由于本脚本不使用 jq/python 来做 JSON 转义，因此对输入做了严格限制：
 - NAME：[A-Za-z0-9_-]{1,32}
-- PASS：[A-Za-z0-9._~+=-]{8,128}
+- PASS：[A-Za-z0-9._~+=-]{8,128}（注意：PASS 不能包含 :）
 - METHOD：[A-Za-z0-9._+-]{3,64}
-- 无空格、无引号、无特殊转义字符
-- 适合纯 shell 写 JSON
+- 无空格、无引号、无特殊转义字符（建议始终给 --entry 加单引号）
 如果不满足格式，脚本会直接报错退出。
 ### 6.3.1生成密码
 - 标准方式 
@@ -170,7 +178,7 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main
   # 生成 16 字节 hex（只含 0-9a-f）
   openssl rand -hex 16
   ```
-- 包含更多字符
+- 包含更多字符（base64）
   ```
   openssl rand -base64 12 | tr -d '\n'
   ```
@@ -178,23 +186,45 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main
 脚本不会自动安装依赖，请自行确保存在：
 - curl tar xz（用于解压 .tar.xz，没有可能会解压失败）
 ## 6.5 服务管理
+多端口模式下，每个实例的服务名为：ssserver-<NAME>.service
+常用命令：
 ```
-sudo systemctl status ssserver --no-pager
-sudo systemctl restart ssserver
-sudo journalctl -u ssserver -f
+systemctl list-units 'ssserver-*' --no-pager
+sudo systemctl status ssserver-A1 --no-pager
+sudo systemctl restart ssserver-A1
+sudo journalctl -u ssserver-A1 -f
 ```
-## 6.6 用法示例：多入口 A → 单出口 B（推荐）
+## 6.6 用法示例
+用法示例
+列出全部实例
+```bash
+sudo ./install-shadowsocks-rust.sh --list
 ```
-sudo ./install-shadowsocks-rust.sh
- \
-  --port 12345 \
+- 删除一个实例（删配置 + 删 unit + disable）
+```bash
+- sudo ./install-shadowsocks-rust.sh --remove NAME
+```
+- 覆盖重装（同名覆盖，需 --force）：
+  ```
+  sudo ./install-shadowsocks-rust.sh --force \
   --method chacha20-ietf-poly1305 \
   --mode tcp_only \
-  --user A1:PASS_A1 \
-  --user A2:PASS_A2 \
-  --allow-ip A1_IP \
-  --allow-ip A2_IP \
-  --install-deps --install-jq
+  --entry 'A1:12345:PASS_A1_12345678' \
+  --entry 'A2:12345:PASS_A2_12345678'
+  ```
+- 单端口模式：
+- ```
+  sudo ./install-shadowsocks-rust.sh \
+  --method chacha20-ietf-poly1305 \
+  --port 62666 \
+  --password 'PASS_A1_12345678'
+  ```
+- 安装两条 entry（覆盖重装加 --force）
+```bash
+sudo ./install-shadowsocks-rust.sh --force \
+  --method chacha20-ietf-poly1305 \
+  --entry 'name1:password1' \
+  --entry 'name2:password2'
 ```
 
 # License
