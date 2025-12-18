@@ -51,7 +51,7 @@ sudo ./cloudflare-ddns.sh install example.domain.com 1234567890abcdef 300
 
 ---
 
-## 🚀 功能特点
+## 4.1🚀 功能特点
 
 - 自动安装 Cloudreve（获取 GitHub 最新 release）
 - 自动安装 Nginx 并配置反向代理
@@ -65,15 +65,13 @@ sudo ./cloudflare-ddns.sh install example.domain.com 1234567890abcdef 300
 
 ---
 
-## 📦 适用系统
+## 4.2📦 适用系统
 
 - Ubuntu 20.04 / 22.04 / 24.04 以及其他 Debian 系发行版
 
 ---
 
-## 📘 使用方法
-
-### 1. 下载脚本
+## 4.3📘 使用方法
 
 ```bash
 curl -fsSL curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main/nginx_proxy.sh -o nginx_proxy.sh \
@@ -86,7 +84,7 @@ Set **static IPv4 + IPv6** and **disable automatic IP changes**
 
 > ⚠️ May disconnect SSH. Use console / out-of-band access.
 
-## Run
+## 5.1Run
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main/force-static-ip.sh | sudo bash -s -- \
@@ -97,7 +95,7 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main
   --yes
 
 ```
-## Does
+## 5.2Does
    - Disable cloud-init network config
       禁用 cloud-init 的网络配置功能
       防止云镜像/云平台在重启或初始化时自动修改 IP、网关或 DNS。
@@ -110,7 +108,7 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main
    - Backup existing configs
       自动备份现有网络配置
       在修改前对原有配置文件进行备份，便于回滚恢复。
-## Options
+## 5.3Options
 
     --keep-networkmanager
       保留并继续使用 NetworkManager（默认会禁用它以减少自动改 IP 的可能）。
@@ -118,7 +116,7 @@ curl -fsSL https://raw.githubusercontent.com/dalaohuuu/vps_tools/refs/heads/main
       不修改 cloud-init 的网络配置（默认会禁用 cloud-init 的网络接管）。
     --dry-run
       仅展示将要生成的配置内容，不对系统做任何实际修改。
-## Rollback
+## 5.4Rollback
       回滚方法（Rollback）
 
       如果网络异常或需要恢复：
