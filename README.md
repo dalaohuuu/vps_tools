@@ -231,3 +231,8 @@ sudo ./install-shadowsrocks-rust.sh \
   --allow-ip A1_IP \
   --allow-ip A2_IP \
   --install-deps --install-jq
+# License
+## License
+This project is licensed under the MIT License.
+## 许可协议
+本项目基于 MIT License 开源。
