@@ -28,7 +28,7 @@ CF_Token="$2"
 HTTPS_PORT=8443
 CERT_ROOT="/root/cert"
 CERT_DIR="$CERT_ROOT/$DOMAIN"
-CERT_ETC_DIR="/etc/cert"
+CERT_ETC_DIR="/etc/cloudreve/cert"
 CLOUDREVE_DIR="/opt/cloudreve"
 
 echo "域名：        $DOMAIN"
