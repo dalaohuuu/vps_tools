@@ -47,8 +47,6 @@ sudo ./cloudflare-ddns.sh install example.domain.com 1234567890abcdef 300
 - **Nginx HTTPS 反代（启用自定义端口 8443）**
 - **acme.sh 自动申请并安装 Let's Encrypt SSL 证书（Cloudflare DNS）**
 
-脚本默认只反代 Cloudreve，不包含任何 3x-ui 面板或订阅接口内容，适合用作独立网盘站点或为其他程序准备 SSL 环境。
-
 ---
 
 ## 4.1🚀 功能特点
